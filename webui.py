@@ -1,3 +1,4 @@
+# coding=utf8
 import tarfile
 
 import gradio as gr
@@ -103,7 +104,7 @@ def each_dir_export_files(root_dir, layer_path, exclude=None):
         elif exclude and file_name in exclude:
             continue
         else:
-            with open(file_path) as f:
+            with open(file_path, encoding="utf-8") as f:
                 content = f.read()
             prefix = ""
             if layer_path:
@@ -114,7 +115,7 @@ def each_dir_export_files(root_dir, layer_path, exclude=None):
             sub_dirs = "、".join(filter(lambda x: os.path.isdir(os.path.join(root_dir, x)), file_list))
             if sub_dirs != "" and prefix != "":
                 content = content + f"\n{prefix}里有{sub_dirs}模块。"
-            with open(file_path, "w+") as f:
+            with open(file_path, "w+", encoding="utf-8") as f:
                 f.write(content)
             result.append(file_path)
     return result
