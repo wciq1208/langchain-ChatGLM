@@ -1,3 +1,5 @@
+import tarfile
+
 import gradio as gr
 import os
 import shutil
@@ -91,6 +93,41 @@ def reinit_model(llm_model, embedding_model, llm_history_len, use_ptuning_v2, us
     return history + [[None, model_status]]
 
 
+def each_dir_export_files(root_dir, layer_path, exclude=None):
+    result = []
+    file_list = os.listdir(root_dir)
+    for file_name in file_list:
+        file_path = os.path.join(root_dir, file_name)
+        if os.path.isdir(file_path):
+            result.extend(each_dir_export_files(file_path, layer_path + [file_name]))
+        elif exclude and file_name in exclude:
+            continue
+        else:
+            with open(file_path) as f:
+                content = f.read()
+            prefix = ""
+            if layer_path:
+                prefix_list = layer_path
+                prefix = "里的".join(prefix_list)
+                content = prefix + "。\n" + content
+
+            sub_dirs = "、".join(filter(lambda x: os.path.isdir(os.path.join(root_dir, x)), file_list))
+            if sub_dirs != "" and prefix != "":
+                content = content + f"\n{prefix}里有{sub_dirs}模块。"
+            with open(file_path, "w+") as f:
+                f.write(content)
+            result.append(file_path)
+    return result
+
+
+def embedding_tar(zip_path, vs_id):
+    upload_tar = tarfile.TarFile(zip_path)
+    root_dir = os.path.join(UPLOAD_ROOT_PATH, vs_id)
+    upload_tar.extractall(root_dir)
+    root_dir = os.path.join(root_dir, upload_tar.getnames()[0])
+    return each_dir_export_files(root_dir, [], [os.path.basename(zip_path)])
+
+
 def get_vector_store(vs_id, files, history):
     vs_path = os.path.join(VS_ROOT_PATH, vs_id)
     filelist = []
@@ -98,8 +135,13 @@ def get_vector_store(vs_id, files, history):
         os.makedirs(os.path.join(UPLOAD_ROOT_PATH, vs_id))
     for file in files:
         filename = os.path.split(file.name)[-1]
-        shutil.move(file.name, os.path.join(UPLOAD_ROOT_PATH, vs_id, filename))
-        filelist.append(os.path.join(UPLOAD_ROOT_PATH, vs_id, filename))
+        target_path = os.path.join(UPLOAD_ROOT_PATH, vs_id, filename)
+        shutil.move(file.name, target_path)
+        if tarfile.is_tarfile(target_path):
+            filelist.extend(embedding_tar(target_path, vs_id))
+            continue
+
+        filelist.append(target_path)
     if local_doc_qa.llm and local_doc_qa.embeddings:
         vs_path, loaded_files = local_doc_qa.init_knowledge_vector_store(filelist, vs_path)
         if len(loaded_files):
@@ -205,7 +247,7 @@ with gr.Blocks(css=block_css) as demo:
                         gr.Markdown("向知识库中添加文件")
                         with gr.Tab("上传文件"):
                             files = gr.File(label="添加文件",
-                                            file_types=['.txt', '.md', '.docx', '.pdf'],
+                                            file_types=['.txt', '.md', '.docx', '.pdf', '.tar'],
                                             file_count="multiple",
                                             show_label=False
                                             )
