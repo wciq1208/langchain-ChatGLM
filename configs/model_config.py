@@ -28,7 +28,7 @@ llm_model_dict = {
     "chatglm-6b-int4-qe": "THUDM/chatglm-6b-int4-qe",
     "chatglm-6b-int4": "THUDM/chatglm-6b-int4",
     "chatglm-6b-int8": "THUDM/chatglm-6b-int8",
-    "chatglm-6b": "../chatglm-6b",
+    "chatglm-6b": "chatglm-6b",
 }
 
 # LLM model name
