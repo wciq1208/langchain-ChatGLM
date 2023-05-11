@@ -129,12 +129,12 @@ def each_dir_export_files(root_dir, layer_path, exclude=None):
                 content = f.read()
             prefix = ""
             if layer_path and content.strip():
-                if content.startswith(file_name):
-                    prefix_list = layer_path
+                if content.startswith(layer_path[:-1]):
+                    prefix_list = layer_path[:-1]
                     prefix = "里的".join(prefix_list)
                     content = prefix + content
                 else:
-                    prefix_list = layer_path[:-1]
+                    prefix_list = layer_path
                     prefix = "里的".join(prefix_list)
                     content = prefix + "是" + content
 
