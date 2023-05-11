@@ -128,10 +128,15 @@ def each_dir_export_files(root_dir, layer_path, exclude=None):
             with open(file_path, encoding="utf-8") as f:
                 content = f.read()
             prefix = ""
-            if layer_path:
-                prefix_list = layer_path
-                prefix = "里的".join(prefix_list)
-                content = prefix + "。\n" + content
+            if layer_path and content.strip():
+                if content.startswith(file_name):
+                    prefix_list = layer_path
+                    prefix = "里的".join(prefix_list)
+                    content = prefix + content
+                else:
+                    prefix_list = layer_path[:-1]
+                    prefix = "里的".join(prefix_list)
+                    content = prefix + "是" + content
 
             sub_dirs = "、".join(filter(lambda x: os.path.isdir(os.path.join(root_dir, x)), file_list))
             if sub_dirs != "" and prefix != "":
@@ -155,21 +160,17 @@ def get_vector_store(vs_id, files, sentence_size, history, one_conent, one_conte
     filelist = []
     if not os.path.exists(os.path.join(UPLOAD_ROOT_PATH, vs_id)):
         os.makedirs(os.path.join(UPLOAD_ROOT_PATH, vs_id))
-    for file in files:
-        filename = os.path.split(file.name)[-1]
-        target_path = os.path.join(UPLOAD_ROOT_PATH, vs_id, filename)
-        shutil.move(file.name, target_path)
-        if tarfile.is_tarfile(target_path):
-            filelist.extend(embedding_tar(target_path, vs_id))
-            continue
-
-        filelist.append(target_path)
     if local_doc_qa.llm and local_doc_qa.embeddings:
         if isinstance(files, list):
             for file in files:
                 filename = os.path.split(file.name)[-1]
-                shutil.move(file.name, os.path.join(UPLOAD_ROOT_PATH, vs_id, filename))
-                filelist.append(os.path.join(UPLOAD_ROOT_PATH, vs_id, filename))
+                target_path = os.path.join(UPLOAD_ROOT_PATH, vs_id, filename)
+                shutil.move(file.name, target_path)
+                if tarfile.is_tarfile(target_path):
+                    filelist.extend(embedding_tar(target_path, vs_id))
+                    continue
+
+                filelist.append(target_path)
             vs_path, loaded_files = local_doc_qa.init_knowledge_vector_store(filelist, vs_path, sentence_size)
         else:
             vs_path, loaded_files = local_doc_qa.one_knowledge_add(vs_path, files, one_conent, one_content_segmentation,
@@ -311,7 +312,7 @@ with gr.Blocks(css=block_css) as demo:
                                                   interactive=True, visible=True)
                         with gr.Tab("上传文件"):
                             files = gr.File(label="添加文件",
-                                            file_types=['.txt', '.md', '.docx', '.pdf'],
+                                            file_types=['.txt', '.md', '.docx', '.pdf', '.tar'],
                                             file_count="multiple",
                                             show_label=False)
                             load_file_button = gr.Button("上传文件并加载知识库")
