@@ -1,7 +1,6 @@
 from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.document_loaders import UnstructuredFileLoader
-from models.chatglm_llm import ChatGLM
 from configs.model_config import *
 import datetime
 from textsplitter import ChineseTextSplitter
@@ -11,6 +10,8 @@ import numpy as np
 from utils import torch_gc
 from tqdm import tqdm
 from pypinyin import lazy_pinyin
+from loader import UnstructuredPaddleImageLoader
+from loader import UnstructuredPaddlePDFLoader
 
 DEVICE_ = EMBEDDING_DEVICE
 DEVICE_ID = "0" if torch.cuda.is_available() else None
@@ -22,14 +23,33 @@ def load_file(filepath, sentence_size=SENTENCE_SIZE):
         loader = UnstructuredFileLoader(filepath, mode="elements")
         docs = loader.load()
     elif filepath.lower().endswith(".pdf"):
-        loader = UnstructuredFileLoader(filepath)
+        loader = UnstructuredPaddlePDFLoader(filepath)
         textsplitter = ChineseTextSplitter(pdf=True, sentence_size=sentence_size)
         docs = loader.load_and_split(textsplitter)
+    elif filepath.lower().endswith(".jpg") or filepath.lower().endswith(".png"):
+        loader = UnstructuredPaddleImageLoader(filepath, mode="elements")
+        textsplitter = ChineseTextSplitter(pdf=False, sentence_size=sentence_size)
+        docs = loader.load_and_split(text_splitter=textsplitter)
     else:
         loader = UnstructuredFileLoader(filepath, mode="elements")
         textsplitter = ChineseTextSplitter(pdf=False, sentence_size=sentence_size)
         docs = loader.load_and_split(text_splitter=textsplitter)
+    write_check_file(filepath, docs)
     return docs
+
+
+def write_check_file(filepath, docs):
+    folder_path = os.path.join(os.path.dirname(filepath), "tmp_files")
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+    fp = os.path.join(folder_path, 'load_file.txt')
+    fout = open(fp, 'a')
+    fout.write("filepath=%s,len=%s" % (filepath, len(docs)))
+    fout.write('\n')
+    for i in docs:
+        fout.write(str(i))
+        fout.write('\n')
+    fout.close()
 
 
 def generate_prompt(related_docs: List[str], query: str,
@@ -130,7 +150,12 @@ class LocalDocQA:
                  use_ptuning_v2: bool = USE_PTUNING_V2,
                  use_lora: bool = USE_LORA,
                  ):
-        self.llm = ChatGLM()
+        if llm_model.startswith('moss'):
+            from models.moss_llm import MOSS
+            self.llm = MOSS()
+        else:
+            from models.chatglm_llm import ChatGLM
+            self.llm = ChatGLM()
         self.llm.load_model(model_name_or_path=llm_model_dict[llm_model],
                             llm_device=llm_device, use_ptuning_v2=use_ptuning_v2, use_lora=use_lora)
         self.llm.history_len = llm_history_len
@@ -173,7 +198,7 @@ class LocalDocQA:
                 if len(failed_files) > 0:
                     logger.info("以下文件未能成功加载：")
                     for file in failed_files:
-                        logger.info(file, end="\n")
+                        logger.info(f"{file}\n")
 
         else:
             docs = []
@@ -209,7 +234,7 @@ class LocalDocQA:
             if not vs_path or not one_title or not one_conent:
                 logger.info("知识库添加错误，请确认知识库名字、标题、内容是否正确！")
                 return None, [one_title]
-            docs = [Document(page_content=one_conent+"\n", metadata={"source": one_title})]
+            docs = [Document(page_content=one_conent + "\n", metadata={"source": one_title})]
             if not one_content_segmentation:
                 text_splitter = ChineseTextSplitter(pdf=False, sentence_size=sentence_size)
                 docs = text_splitter.split_documents(docs)
