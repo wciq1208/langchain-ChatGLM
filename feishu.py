@@ -134,7 +134,7 @@ class FeishuServer(BaseHTTPRequestHandler):
     def get_answer(cls, query, history):
         result = ""
         if cls.vs_path is not None and os.path.exists(cls.vs_path):
-            for resp, history in cls.local_doc_qa.get_knowledge_based_answer(
+            for resp, history in cls.get_knowledge_based_answer(
                     query=query, chat_history=history, streaming=False):
                 result += resp.get("result", "") + "\n"
         logger.info(
