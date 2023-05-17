@@ -25,7 +25,7 @@ class FeishuClient:
         self.reset_feishu_token()
 
     @staticmethod
-    def send_api(url, data, headers: dict | None = None, timeout=None):
+    def send_api(url, data, headers=None, timeout=None):
         try:
             resp = requests.post(url, json=data, timeout=timeout, headers=headers)
             msg: Dict = resp.json()
