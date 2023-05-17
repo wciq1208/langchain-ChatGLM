@@ -1,5 +1,7 @@
 # coding=utf8
 import json
+import threading
+import time
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from typing import Dict
 
@@ -72,7 +74,7 @@ class FeishuServer(BaseHTTPRequestHandler):
     feishu_client = None
     local_doc_qa = None
     vs_path = None
-    reply_msg_id_set = set()
+    reply_msg_id_map = dict()
 
     @classmethod
     def _init_model(cls):
@@ -113,9 +115,9 @@ class FeishuServer(BaseHTTPRequestHandler):
         event = data.get("event")
         msg = event.get("message", dict())
         msg_id = msg.get("message_id")
-        if msg_id in cls.reply_msg_id_set:
+        if msg_id in cls.reply_msg_id_map:
             return None, 0, None
-        cls.reply_msg_id_set.add(msg_id)
+        cls.reply_msg_id_map[msg_id] = time.time()
         content: str = json.loads(msg.get("content", "{}")).get("text", "")
         at_list = []
         for user in msg.get("mentions", []):
@@ -141,10 +143,23 @@ class FeishuServer(BaseHTTPRequestHandler):
             if err is not None:
                 logger.info(err)
 
+    @classmethod
+    def clean_msg_id_map(cls):
+        while True:
+            now = time.time()
+            clean_list = set()
+            for msg_id, t in cls.reply_msg_id_map.items():
+                if now > 600 + t:
+                    clean_list.add(msg_id)
+            for msg_id in clean_list:
+                del cls.reply_msg_id_map[msg_id]
+
 
 def run():
     logger.info("start init")
     FeishuServer.init("test")
+    th = threading.Thread(target=FeishuServer.clean_msg_id_map)
+    th.start()
     server = HTTPServer(("0.0.0.0", 7777), FeishuServer)
     logger.info("start server")
     server.serve_forever()
