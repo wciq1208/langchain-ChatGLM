@@ -23,7 +23,7 @@ logger.setLevel(logging.INFO)
 
 
 class FeishuClient:
-    APP_ID = "cli_a4ee807bc27e500e"
+    APP_ID = "cli_a4ee84bbfaf9900d"
     APP_SECRET = "9g4fnwdDH0d8qTBWSqGblgCjAawzmTgW"
 
     def __init__(self):
