@@ -154,6 +154,7 @@ class FeishuServer(BaseHTTPRequestHandler):
                     clean_list.add(msg_id)
             for msg_id in clean_list:
                 del cls.reply_msg_id_map[msg_id]
+            time.sleep(300)
 
 
 def run():
