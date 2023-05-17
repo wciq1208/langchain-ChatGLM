@@ -100,11 +100,11 @@ class FeishuServer(BaseHTTPRequestHandler):
 
     @classmethod
     def _init_vector_store(cls):
-        vector_store = FAISS.load_local(cls.vs_path, cls.local_doc_qa.embeddings)
+        cls.vector_store = FAISS.load_local(cls.vs_path, cls.local_doc_qa.embeddings)
         FAISS.similarity_search_with_score_by_vector = similarity_search_with_score_by_vector
-        vector_store.chunk_size = cls.local_doc_qa.chunk_size
-        vector_store.chunk_conent = cls.local_doc_qa.chunk_conent
-        vector_store.score_threshold = cls.local_doc_qa.score_threshold
+        cls.vector_store.chunk_size = cls.local_doc_qa.chunk_size
+        cls.vector_store.chunk_conent = cls.local_doc_qa.chunk_conent
+        cls.vector_store.score_threshold = cls.local_doc_qa.score_threshold
 
     @classmethod
     def _init_model(cls):
