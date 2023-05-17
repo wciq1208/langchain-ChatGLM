@@ -98,18 +98,14 @@ class FeishuServer(BaseHTTPRequestHandler):
 
     @classmethod
     def get_answer(cls, query, history):
-        print(11111)
+        result = ""
         if cls.vs_path is not None and os.path.exists(cls.vs_path):
-            print(22222)
             for resp, history in cls.local_doc_qa.get_knowledge_based_answer(
                     query=query, vs_path=cls.vs_path, chat_history=history, streaming=False):
-                print("####")
-                print(resp)
-                print("=======")
-                print(history)
-                #yield history, ""
+                result += resp.get("result", "") + "\n"
         logger.info(
             f"flagging: username={FLAG_USER_NAME},query={query},vs_path={cls.vs_path},history={history}")
+        return result.strip()
 
     @classmethod
     def event(cls, data):
@@ -124,8 +120,8 @@ class FeishuServer(BaseHTTPRequestHandler):
             if user is not None:
                 content = content.replace(user, "")
         content = content.strip()
-        cls.get_answer(content, [])
-        return cls.feishu_client.reply(msg_id, "test")
+        result = cls.get_answer(content, [])
+        return cls.feishu_client.reply(msg_id, result)
 
     def do_POST(self):
         length = int(self.headers.get("Content-Length", 0))
