@@ -72,6 +72,7 @@ class FeishuServer(BaseHTTPRequestHandler):
     feishu_client = None
     local_doc_qa = None
     vs_path = None
+    reply_msg_id_set = set()
 
     @classmethod
     def _init_model(cls):
@@ -112,6 +113,9 @@ class FeishuServer(BaseHTTPRequestHandler):
         event = data.get("event")
         msg = event.get("message", dict())
         msg_id = msg.get("message_id")
+        if msg_id in cls.reply_msg_id_set:
+            return None, 0, None
+        cls.reply_msg_id_set.add(msg_id)
         content: str = json.loads(msg.get("content", "{}")).get("text", "")
         at_list = []
         for user in msg.get("mentions", []):
