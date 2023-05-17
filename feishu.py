@@ -115,6 +115,7 @@ class FeishuServer(BaseHTTPRequestHandler):
         event = data.get("event")
         msg = event.get("message", dict())
         msg_id = msg.get("message_id")
+        logger.info(f"get msg id:{msg_id}")
         if msg_id in cls.reply_msg_id_map:
             return None, 0, None
         cls.reply_msg_id_map[msg_id] = time.time()
