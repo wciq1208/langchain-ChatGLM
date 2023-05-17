@@ -71,6 +71,8 @@ class FeishuClient:
             if code != 99991661:
                 break
             self.reset_feishu_token()
+        if code != 0:
+            logger.error(code, err)
         return resp, code, err
 
 
