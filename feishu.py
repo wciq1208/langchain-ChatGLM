@@ -8,8 +8,12 @@ from typing import Dict
 import nltk
 import requests
 
+from langchain.vectorstores import FAISS
+
 from chains.local_doc_qa import LocalDocQA
+from chains.local_doc_qa import similarity_search_with_score_by_vector, generate_prompt
 from configs.model_config import *
+from utils import torch_gc
 
 nltk.data.path = [NLTK_DATA_PATH] + nltk.data.path
 stream_log = logging.StreamHandler()
@@ -75,6 +79,32 @@ class FeishuServer(BaseHTTPRequestHandler):
     local_doc_qa = None
     vs_path = None
     reply_msg_id_map = dict()
+    vector_store = None
+
+    @classmethod
+    def get_knowledge_based_answer(cls, query, chat_history=[], streaming: bool = STREAMING):
+        related_docs_with_score = cls.vector_store.similarity_search_with_score(query, k=cls.local_doc_qa.top_k)
+        torch_gc()
+        prompt = generate_prompt(related_docs_with_score, query)
+
+        for result, history in cls.local_doc_qa.llm._call(prompt=prompt,
+                                                          history=chat_history,
+                                                          streaming=streaming):
+            torch_gc()
+            history[-1][0] = query
+            response = {"query": query,
+                        "result": result,
+                        "source_documents": related_docs_with_score}
+            yield response, history
+            torch_gc()
+
+    @classmethod
+    def _init_vector_store(cls):
+        vector_store = FAISS.load_local(cls.vs_path, cls.local_doc_qa.embeddings)
+        FAISS.similarity_search_with_score_by_vector = similarity_search_with_score_by_vector
+        vector_store.chunk_size = cls.local_doc_qa.chunk_size
+        vector_store.chunk_conent = cls.local_doc_qa.chunk_conent
+        vector_store.score_threshold = cls.local_doc_qa.score_threshold
 
     @classmethod
     def _init_model(cls):
@@ -98,13 +128,14 @@ class FeishuServer(BaseHTTPRequestHandler):
         cls.feishu_client = FeishuClient()
         cls.local_doc_qa = LocalDocQA()
         cls._init_model()
+        cls._init_vector_store()
 
     @classmethod
     def get_answer(cls, query, history):
         result = ""
         if cls.vs_path is not None and os.path.exists(cls.vs_path):
             for resp, history in cls.local_doc_qa.get_knowledge_based_answer(
-                    query=query, vs_path=cls.vs_path, chat_history=history, streaming=False):
+                    query=query, chat_history=history, streaming=False):
                 result += resp.get("result", "") + "\n"
         logger.info(
             f"flagging: username={FLAG_USER_NAME},query={query},vs_path={cls.vs_path},history={history}")
