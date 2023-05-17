@@ -24,7 +24,7 @@ logger.setLevel(logging.INFO)
 
 class FeishuClient:
     APP_ID = "cli_a4ee807bc27e500e"
-    APP_SECRET = "JN6Y9mhyUgiiHcvW4I7wQdTCV6q5ZWAM"
+    APP_SECRET = "9g4fnwdDH0d8qTBWSqGblgCjAawzmTgW"
 
     def __init__(self):
         self.feishu_token = None
@@ -72,7 +72,7 @@ class FeishuClient:
                 break
             self.reset_feishu_token()
         if code != 0:
-            logger.error(code, err)
+            logger.error(f"{code}, {err}")
         return resp, code, err
 
 
